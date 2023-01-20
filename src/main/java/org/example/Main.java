@@ -1,15 +1,16 @@
 package org.example;
 
 import java.util.*;
-import java.util.concurrent.*;
 
 public class Main {
     public static final Map<Integer, Integer> sizeToFreq = new HashMap<>();
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
         int sizePol = 1000;
-        ExecutorService threadPol = Executors.newFixedThreadPool(sizePol);
+
+        Thread[] threads = new Thread[sizePol];
+
         for (int i = 0; i < sizePol; i++) {
             Runnable task = () -> {
                 String route = generateRoute("RLRFR", 100);
@@ -17,10 +18,13 @@ public class Main {
                 int key = Math.toIntExact(route.chars().filter(n -> n == r).count());
                 addMap(key);
             };
-            threadPol.execute(task);
+            threads[i] = new Thread(task);
+            threads[i].start();
         }
 
-        threadPol.shutdown();
+        for (Thread thread : threads) {
+            thread.join();
+        }
 
         System.out.printf("Самое частое количество повторений: %s (встретилось %s раз)\n", Collections.max(sizeToFreq
                 .entrySet(), Comparator.comparingInt(Map.Entry::getValue)).getKey(), Collections.max(sizeToFreq.values()));

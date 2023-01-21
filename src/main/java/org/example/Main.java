@@ -1,5 +1,6 @@
 package org.example;
 
+
 import java.util.*;
 
 public class Main {
@@ -9,22 +10,40 @@ public class Main {
 
         int sizePol = 1000;
 
-        Thread[] threads = new Thread[sizePol];
-
-        for (int i = 0; i < sizePol; i++) {
-            Runnable task = () -> {
+        Runnable task = () -> {
+            for (int i = 0, j = 0; i < sizePol; i++, j++) {
                 String route = generateRoute("RLRFR", 100);
                 char r = 'R';
                 int key = Math.toIntExact(route.chars().filter(n -> n == r).count());
-                addMap(key);
-            };
-            threads[i] = new Thread(task);
-            threads[i].start();
-        }
+                synchronized (sizeToFreq) {
+                    addMap(key);
+                    System.out.println("err: " + j);
+                    sizeToFreq.notify();
+                }
+            }
+        };
+        Thread thread1 = new Thread(task);
+        thread1.start();
 
-        for (Thread thread : threads) {
-            thread.join();
-        }
+        Thread thread = new Thread(() -> {
+            int i = 0;
+            while (!Thread.interrupted()) {
+                synchronized (sizeToFreq) {
+                    try {
+                        sizeToFreq.wait();
+                    } catch (InterruptedException e) {
+                        return;
+                    }
+                    System.out.printf("Текущий лидер: %s (встретилось %s раз) %s\n", Collections.max(sizeToFreq
+                            .entrySet(), Comparator.comparingInt(Map.Entry::getValue)).getKey(), Collections.max(sizeToFreq.values()), i++);
+                }
+            }
+        });
+        thread.start();
+
+        thread1.join();
+
+        thread.interrupt();
 
         System.out.printf("Самое частое количество повторений: %s (встретилось %s раз)\n", Collections.max(sizeToFreq
                 .entrySet(), Comparator.comparingInt(Map.Entry::getValue)).getKey(), Collections.max(sizeToFreq.values()));
@@ -32,7 +51,7 @@ public class Main {
         sizeToFreq.forEach((key, value) -> System.out.printf(" - %s (%s раз)\n", key, value));
     }
 
-    protected static synchronized void addMap(Integer key) {
+    protected static void addMap(Integer key) {
         int i = 1;
         if (!sizeToFreq.containsKey(key)) {
             sizeToFreq.put(key, i);
